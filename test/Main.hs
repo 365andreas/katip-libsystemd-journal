@@ -127,6 +127,14 @@ testJournalScribe = testSpec "journalScribe" $ around (withLogEnv DebugS V2) $
         let pidField = mkJournalField "_PID"
             journal = openJournal [LocalOnly] (FromEnd Forwards) (Just $ Match pidField pid) Nothing
 
+        -- This may seem a bit odd, but seems to be required: we must make sure
+        -- the journal is actually opened at this point, before we send the
+        -- first message, not when `journal` is used for the first time, and
+        -- would be initialized lazily.
+        -- Without this, the test hangs randomly, waiting for a message to
+        -- appear which will never come.
+        _ <- journal `seq` pure ()
+
         liftIO $ sendMessage "Test starts, this is a marker"
         Just demo <- P.head journal
         let cursor = journalEntryCursor demo
