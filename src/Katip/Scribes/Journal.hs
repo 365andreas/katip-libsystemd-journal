@@ -85,7 +85,7 @@ journalScribe facility severity verbosity = Scribe liPush scribeFinalizer
 
 -- | Convert a "Katip" 'Item' into a "libsystemd-journal" 'JournalFields' map.
 --
--- /Note:/ Exported for benchmarking purposes only.
+-- /Note:/ Exported for benchmarking and testing purposes only.
 itemToJournalFields :: LogItem a
                     => Maybe Facility  -- ^ Optional 'SYSLOG_FACILITY'
                     -> Verbosity  -- ^ Verbosity level of payload to log
