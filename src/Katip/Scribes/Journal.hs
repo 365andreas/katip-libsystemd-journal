@@ -28,11 +28,12 @@ import qualified Data.Text as T (empty, intercalate)
 import qualified Data.Text.Encoding as T (encodeUtf8)
 import qualified Data.Text.Lazy as TL (toStrict)
 import qualified Data.Text.Lazy.Builder as TL (toLazyText)
-import qualified Data.Text.Lazy.Encoding as TL (encodeUtf8)
 
 import qualified Data.HashMap.Strict as M (empty, fromList)
 
 import Language.Haskell.TH.Syntax (Loc(Loc, loc_filename, loc_start))
+
+import Data.Aeson (encode)
 
 import Katip (
     Environment(getEnvironment),
@@ -40,9 +41,8 @@ import Katip (
     LogItem, LogStr(unLogStr), Namespace(unNamespace), Scribe(Scribe),
     Severity(AlertS, CriticalS, DebugS, EmergencyS, ErrorS, InfoS, NoticeS, WarningS),
     ThreadIdText(getThreadIdText), Verbosity,
-    permitItem)
+    payloadObject, permitItem)
 import Katip.Format.Time (formatAsIso8601)
-import Katip.Scribes.Handle (brackets, getKeys)
 
 import Systemd.Journal (
     JournalFields, Priority(Alert, Critical, Debug, Emergency, Error, Info, Notice, Warning),
@@ -67,8 +67,8 @@ import System.Posix.Syslog (Facility)
 -- Katip ('ENVIRONMENT'), the thread ID where the log message was emitted
 -- ('THREAD'), the entry's namespace, concatenated using dots ('NAMESPACE'),
 -- the timestamp at which the entry was emitted, formatted as an ISO8601 string
--- ('TIME'), and the payload of the log entry, flattened out into bracketed
--- fields ('PAYLOAD').
+-- ('TIME'), and the payload of the log entry as a JSON-formatted string
+-- ('PAYLOAD').
 journalScribe :: Maybe Facility  -- ^ Optional 'SYSLOG_FACILITY' added to every log item
               -> Severity  -- ^ Minimal 'Severity' of messages to emit
               -> Verbosity  -- ^ 'Verbosity' of payloads to render
@@ -101,7 +101,7 @@ itemToJournalFields facility verbosity item = mconcat [ defaultFields item
                                      , syslogIdentifier (unNS _itemApp)
                                      , M.fromList [ (environment, T.encodeUtf8 $ getEnvironment _itemEnv)
                                                   , (namespace, T.encodeUtf8 $ unNS _itemNamespace)
-                                                  , (payload, BL.toStrict $ TL.encodeUtf8 $ TL.toLazyText $ unPayload _itemPayload)
+                                                  , (payload, BL.toStrict $ encode $ payloadObject verbosity _itemPayload)
                                                   , (thread, T.encodeUtf8 $ getThreadIdText _itemThread)
                                                   , (time, T.encodeUtf8 $ formatAsIso8601 _itemTime)
                                                   ]
@@ -121,8 +121,6 @@ itemToJournalFields facility verbosity item = mconcat [ defaultFields item
         [p] -> p -- Short-circuit common cases
         [] -> T.empty
         parts -> T.intercalate "." parts
-
-    unPayload = mconcat . map brackets . getKeys verbosity
 
     mapSeverity s = case s of
         DebugS -> Debug

@@ -91,7 +91,7 @@ testItemToJournalFields = testGroup "itemToJournalFields" [
               , lookupField "THREAD" fields === Just (convert $ _itemThread item)
               , lookupField "NAMESPACE" fields === Just (convert $ _itemNamespace item)
               , lookupField "TIME" fields === Just (convert $ _itemTime item)
-              , lookupField "PAYLOAD" fields === Just ""
+              , lookupField "PAYLOAD" fields === Just "{}"
               ]
     ]
   where
